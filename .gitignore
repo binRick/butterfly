@@ -11,3 +11,5 @@ build/
 .cache/
 .env*
 .pytest_cache
+.v/
+*.pem

@@ -24,6 +24,8 @@ import time
 from collections import defaultdict
 from mimetypes import guess_type
 from uuid import uuid4
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
 import tornado.escape
 import tornado.options
@@ -33,13 +35,23 @@ import tornado.websocket
 
 from butterfly import Route, url, utils
 from butterfly.terminal import Terminal
-
+from pynag import Model
 
 def u(s):
     if sys.version_info[0] == 2:
         return s.decode('utf-8')
     return s
 
+def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION):
+    print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, ')
+    found_services = Model.Service.objects.filter(host_name=HOST_NAME, service_description=SERVICE_DESCRIPTION)
+
+    cmd = "{} execute {} '{}'".format(
+        "pynag",
+        HOST_NAME,
+        SERVICE_DESCRIPTION,
+    )
+    return cmd
 
 @url(r'/(?:session/(?P<session>[^/]+)/?)?')
 class Index(Route):
@@ -163,6 +175,9 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
     def open(self, session):
         super(TermCtlWebSocket, self).open(session)
         self.session = session
+        self.CMD_SETUP = {
+          'session': self.session,
+        }
         self.closed = False
         self.log.info('Websocket /ctl opened %r' % self)
 
@@ -173,6 +188,7 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
         path = self.request.query_arguments.get(
             'path', [b''])[0].decode('utf-8')
         secure_user = None
+        self.CMD_SETUP['path'] = str(path)
 
         if not tornado.options.options.unsecure:
             user = utils.parse_cert(
@@ -214,14 +230,23 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
             # And returning, we don't want another terminal
             return
 
+        self.CMD_SETUP['path'] = str(path)
+        self.CMD_SETUP['uri'] = str(self.request.full_url().replace('/ctl/', '/'))
+        self.CMD_SETUP['user'] = str(user)
+        self.CMD_SETUP['urlparse'] = urlparse(self.CMD_SETUP['uri'])[4]
+        self.CMD_SETUP['parse_qs'] = parse_qs(self.CMD_SETUP['urlparse'])
+        HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
+        SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
+        self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION)
+
         # New session, opening terminal
         terminal = Terminal(
             user, path, self.session, socket,
             self.request.full_url().replace('/ctl/', '/'), self.render_string,
-            TermWebSocket.broadcast)
+            TermWebSocket.broadcast, self.CMD_SETUP)
 
         terminal.pty()
-        self.log.info('Openning session %s for secure user %r' % (
+        self.log.info('Opening session %s for secure user %r' % (
             self.session, user))
 
     @classmethod
@@ -278,6 +303,9 @@ class TermWebSocket(Route, KeptAliveWebSocketHandler):
         super(TermWebSocket, self).open(session)
         self.set_nodelay(True)
         self.session = session
+        self.CMD_SETUP = {
+          'open': 123,        
+        }
         self.closed = False
         self.sessions[session].append(self)
         self.__class__.last = self
@@ -325,6 +353,14 @@ class TermWebSocket(Route, KeptAliveWebSocketHandler):
         self.log.info('Websocket /ws closed %r' % self)
         self.sessions[self.session].remove(self)
 
+
+@url(r'/nagios/action/execute.php')
+class NagiosActionExecute(Route):
+    def get(self):
+        self.set_header('Content-Type', 'application/json')
+        self.write(tornado.escape.json_encode({
+            'wow': 123,
+        }))
 
 @url(r'/sessions/list.json')
 class SessionsList(Route):

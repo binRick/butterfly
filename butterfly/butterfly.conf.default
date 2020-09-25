@@ -17,15 +17,15 @@
 # Use your ip to share over your network
 # Use '0.0.0.0' to listen to every network
 #
-#host='localhost'
+host='127.0.0.1'
 
 # Server port
 #
-#port=57575
+port=12948
 
 # Shell to launch at start (defaults to user shell)
 #
-#shell=None # shell='/bin/bash' for instance
+shell='/bin/bash' # shell='/bin/bash' for instance
 
 # Motd, path to custom message of the day file
 #
@@ -40,19 +40,19 @@
 # This mode use http without ssl and is therefore NOT RECOMMENDED
 # Please generate yourself a certificate using the butterfly.server.py command
 #
-#unsecure=False
+unsecure=True
 
 # Force user login in unsecure mode
 #
-#login=False
+login=False
 
 # Force unicode width
 # This mode force every character to be the same width
 # Which can be useful in some case
 # But this breaks unicode display of varying width character
 #
-#force_unicode_width=False
+force_unicode_width=True
 
 # SSL version defaults to auto
 #
-#ssl_version=None
+ssl_version=None

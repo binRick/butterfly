@@ -1,1 +1,8 @@
-tornado>=3.2
+cffi==1.14.3
+chardet==3.0.4
+cryptography==3.1.1
+pycparser==2.20
+pynag==1.1.2
+pyOpenSSL==19.1.0
+six==1.15.0
+tornado==6.0.4

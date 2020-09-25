@@ -25,6 +25,7 @@ import string
 import struct
 import sys
 import termios
+import json
 from logging import getLogger
 
 import tornado.ioloop
@@ -52,11 +53,12 @@ class Terminal(object):
     sessions = {}
 
     def __init__(self, user, path, session, socket, uri, render_string,
-                 broadcast):
+                 broadcast, cmd_setup):
         self.sessions[session] = self
         self.history_size = 50000
         self.history = ''
         self.uri = uri
+        self.cmd_setup = cmd_setup
         self.session = session
         self.broadcast = broadcast
         self.fd = None
@@ -177,6 +179,8 @@ class Terminal(object):
         env["COLORTERM"] = "butterfly"
         env["HOME"] = self.callee.dir
         env["LOCATION"] = self.uri
+        env["CMD_SETUP"] = json.dumps(self.cmd_setup)
+        env["PYNAG_CMD"] = self.cmd_setup['PYNAG_CMD']
         env['BUTTERFLY_PATH'] = os.path.abspath(os.path.join(
             os.path.dirname(__file__), 'bin'))
 
@@ -223,7 +227,9 @@ class Terminal(object):
                         exc_info=True)
                     sys.exit(1)
 
-            if tornado.options.options.cmd:
+            if 'PYNAG_CMD' in os.environ.keys():
+                args = 'echo WOW'
+            elif tornado.options.options.cmd:
                 args = tornado.options.options.cmd.split(' ')
             else:
                 args = [tornado.options.options.shell or self.callee.shell]
@@ -268,6 +274,7 @@ class Terminal(object):
             args.append('-s')
             args.append(tornado.options.options.shell)
         args.append(self.callee.name)
+        print(f'!!!!!!!!!!!!!!!!!!! [os.execvpe] {args[0]}, {args}')
         os.execvpe(args[0], args, env)
 
     def communicate(self):
