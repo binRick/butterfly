@@ -55,14 +55,11 @@ def get_wrapper_mode_config():
         print(exc)
 
 def write_script_template(self):
-    SCRIPT_CONTENTS = render_script_template(self)
-    print(SCRIPT_CONTENTS)
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-      tmp.write(render_script_template(self).encode())
-      tmp.close()
-      print(f'tmpfile={tmp.name}')
+      tmp = tempfile.NamedTemporaryFile(delete=False)
+      with open(tmp.name,'w') as f:
+        f.write(render_script_template(self))
+      os.chmod(tmp.name, 0o755)
       return tmp.name
-
 
 def render_script_template(self):
     TEMPLATE_VARS = {'foo':'Hello World!',}
@@ -74,26 +71,6 @@ def render_script_template(self):
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader('wrappers'),        undefined=jinja2.StrictUndefined,).get_template(wrapper_mode_config['SCRIPT_TEMPLATE']).render(TEMPLATE_VARS)
 
-def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION, self):
-    wrapper_mode_config = get_wrapper_mode_config()
-    templated_script = write_script_template(self)
-    script_template = render_script_template(self)
-
-
-    print('[generate_cmd] render_script_template=\n{}\ntemplated_script={}'.format(script_template,templated_script))
-    print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, {wrapper_mode_config}')
-    found_services = Model.Service.objects.filter(host_name=HOST_NAME, service_description=SERVICE_DESCRIPTION)
-
-    cmd = "echo {} execute {} '{}'".format(
-        "pynag",
-        HOST_NAME,
-        SERVICE_DESCRIPTION,
-    )
-#    if DEBUG_CMD:
-#        cmd = "/bin/sh -c 'echo {}'".format(cmd)
-
-    cmd = 'ls /'
-    return cmd
 
 @url(r'/(?:session/(?P<session>[^/]+)/?)?')
 class Index(Route):
@@ -296,18 +273,16 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
         if len(MISSING_PARAMS) > 0:
             err = f'{len(MISSING_PARAMS)} Missing URL parameters: {", ".join(MISSING_PARAMS)}'
             print(f'ERROR: {err}')
-            self.CMD_SETUP['PYNAG_CMD'] = "echo -e '{}'".format(err)
+            tornado.options.options.cmd = "echo -e '{}'".format(err)
         elif len(INVALID_PARAMS) > 0:
             err = f'{len(INVALID_PARAMS)} Invalid URL parameters: {", ".join(INVALID_PARAMS)}'
             print(f'ERROR: {err}')
-            self.CMD_SETUP['PYNAG_CMD'] = "echo -e '{}'".format(err)
+            tornado.options.options.cmd = "echo -e '{}'".format(err)
         else:
             HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
-#            SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
             SERVICE_DESCRIPTION = ''
-            self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION, self)
-            self.CMD_SETUP['SCRIPT_TEMPLATE_FILE'] = wrapper_mode_config['SCRIPT_TEMPLATE']
-            print(self.CMD_SETUP)
+            tornado.options.options.cmd = write_script_template(self)
+            sys.stderr.write('CMD={}\n'.format(tornado.options.options.cmd))
 
         # New session, opening terminal
         terminal = Terminal(

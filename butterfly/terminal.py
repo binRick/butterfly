@@ -181,7 +181,7 @@ class Terminal(object):
         env["HOME"] = self.callee.dir
         env["LOCATION"] = self.uri
         env["CMD_SETUP"] = json.dumps(self.cmd_setup)
-        env["PYNAG_CMD"] = self.cmd_setup['PYNAG_CMD']
+#        env["PYNAG_CMD"] = self.cmd_setup['PYNAG_CMD']
         env['BUTTERFLY_PATH'] = os.path.abspath(os.path.join(
             os.path.dirname(__file__), 'bin'))
 
