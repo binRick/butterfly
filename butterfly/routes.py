@@ -37,6 +37,8 @@ from butterfly import Route, url, utils
 from butterfly.terminal import Terminal
 from pynag import Model
 
+DEBUG_CMD = True
+
 def u(s):
     if sys.version_info[0] == 2:
         return s.decode('utf-8')
@@ -46,11 +48,15 @@ def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION):
     print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, ')
     found_services = Model.Service.objects.filter(host_name=HOST_NAME, service_description=SERVICE_DESCRIPTION)
 
-    cmd = "{} execute {} '{}'".format(
+    cmd = "echo {} execute {} '{}'".format(
         "pynag",
         HOST_NAME,
         SERVICE_DESCRIPTION,
     )
+#    if DEBUG_CMD:
+#        cmd = "/bin/sh -c 'echo {}'".format(cmd)
+
+    cmd = 'ls /'
     return cmd
 
 @url(r'/(?:session/(?P<session>[^/]+)/?)?')
@@ -235,9 +241,21 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
         self.CMD_SETUP['user'] = str(user)
         self.CMD_SETUP['urlparse'] = urlparse(self.CMD_SETUP['uri'])[4]
         self.CMD_SETUP['parse_qs'] = parse_qs(self.CMD_SETUP['urlparse'])
-        HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
-        SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
-        self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION)
+
+        REQUIRED_PARAMS = ['hostname','service_description']
+        MISSING_PARAMS = []
+        for rp in REQUIRED_PARAMS:
+          if not rp in self.CMD_SETUP['parse_qs'].keys():
+            MISSING_PARAMS.append(rp)
+
+        if len(MISSING_PARAMS) > 0:
+            err = f'{len(MISSING_PARAMS)} Missing URL parameters: {", ".join(MISSING_PARAMS)}'
+            print(f'ERROR: {err}')
+            self.CMD_SETUP['PYNAG_CMD'] = "echo -e '{}'".format(err)
+        else:
+            HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
+            SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
+            self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION)
 
         # New session, opening terminal
         terminal = Terminal(

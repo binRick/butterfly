@@ -41,6 +41,7 @@ ioloop = tornado.ioloop.IOLoop.instance()
 server = utils.User()
 daemon = utils.User(name='daemon')
 
+DEBUG_MODE = False
 
 # Python 2 backward compatibility
 try:
@@ -227,8 +228,9 @@ class Terminal(object):
                         exc_info=True)
                     sys.exit(1)
 
-            if 'PYNAG_CMD' in os.environ.keys():
-                args = 'echo WOW'
+#            if 'PYNAG_CMD' in os.environ.keys():
+#                args = 'echo WOW'
+
             elif tornado.options.options.cmd:
                 args = tornado.options.options.cmd.split(' ')
             else:
@@ -237,6 +239,9 @@ class Terminal(object):
 
             # In some cases some shells don't export SHELL var
             env['SHELL'] = args[0]
+            if DEBUG_MODE:
+                print(f'args={args}, env={env}')
+
             os.execvpe(args[0], args, env)
             # This process has been replaced
 

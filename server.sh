@@ -10,7 +10,7 @@ PORT=48229
 sub_cmd="/opt/nagios-cli/nagios-cli -c /opt/nagios-cli/nagios.cfg"
 sub_cmd="$(command -v env)"
 sub_cmd="/bin/bash"
-sub_cmd="/root/butterfly/pynag_wrapper.sh"
+sub_cmd="$(pwd)/pynag_wrapper.sh"
 cmd="./butterfly.server.py --unsecure \
 	--i-hereby-declare-i-dont-want-any-security-whatsoever 
 	--port='$PORT' \
