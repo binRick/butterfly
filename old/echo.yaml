@@ -1,0 +1,20 @@
+---
+REQUIRED_PARAMS:
+  - hostname
+  - action
+  - authorized_username
+
+
+PARAM_OPTIONS:
+  action:
+    - normalize
+    - test_auth
+
+
+SCRIPT_TEMPLATE: echo.sh
+SCRIPT_TEMPLATE_PARAMS:
+  - hostname
+  - action
+  - authorized_username
+
+...
