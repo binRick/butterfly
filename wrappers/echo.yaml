@@ -2,6 +2,8 @@
 REQUIRED_PARAMS:
   - hostname
   - action
+  - authorized_username
+
 
 PARAM_OPTIONS:
   action:
@@ -9,10 +11,10 @@ PARAM_OPTIONS:
     - test_auth
 
 
-
 SCRIPT_TEMPLATE: echo.sh
 SCRIPT_TEMPLATE_PARAMS:
   - hostname
   - action
+  - authorized_username
 
 ...

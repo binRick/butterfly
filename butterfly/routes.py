@@ -56,9 +56,11 @@ def get_wrapper_mode_config():
 
 def write_script_template(self):
       tmp = tempfile.NamedTemporaryFile(delete=False)
+      c = render_script_template(self)
       with open(tmp.name,'w') as f:
-        f.write(render_script_template(self))
+        f.write(c)
       os.chmod(tmp.name, 0o755)
+      print(c)
       return tmp.name
 
 def render_script_template(self):
