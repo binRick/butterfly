@@ -4,6 +4,7 @@ source setup.sh
 HOST=0.0.0.0
 PORT=48229
 
+WRAPPER_MODE=echo
 
 
 #FLASK_APP=flask_server LASK_DEBUG=1 flask run --port 5000 --host 0.0.0.0
@@ -11,7 +12,8 @@ PORT=48229
 #sub_cmd="$(command -v env)"
 #sub_cmd="/bin/bash"
 #sub_cmd="$(pwd)/pynag_wrapper.sh"
-sub_cmd="$(pwd)/wrappers/echo.sh"
+sub_cmd="$(pwd)/wrappers/$WRAPPER_MODE.sh"
+export sub_cmd_config_file="$(pwd)/wrappers/$WRAPPER_MODE.yaml"
 cmd="./butterfly.server.py --unsecure \
 	--i-hereby-declare-i-dont-want-any-security-whatsoever 
 	--port='$PORT' \

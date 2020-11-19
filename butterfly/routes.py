@@ -37,6 +37,7 @@ from butterfly import Route, url, utils
 from butterfly.terminal import Terminal
 from pynag import Model
 
+import yaml
 DEBUG_CMD = True
 
 def u(s):
@@ -44,8 +45,19 @@ def u(s):
         return s.decode('utf-8')
     return s
 
+def get_wrapper_mode_config():
+    sub_cmd_config_file = os.environ['sub_cmd_config_file']
+    with open(sub_cmd_config_file, 'r') as stream:
+      try:
+        return yaml.safe_load(stream)
+      except yaml.YAMLError as exc:
+        print(exc)
+
+
 def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION):
-    print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, ')
+    wrapper_mode_config = get_wrapper_mode_config()
+
+    print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, {wrapper_mode_config}')
     found_services = Model.Service.objects.filter(host_name=HOST_NAME, service_description=SERVICE_DESCRIPTION)
 
     cmd = "echo {} execute {} '{}'".format(
@@ -241,20 +253,34 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
         self.CMD_SETUP['user'] = str(user)
         self.CMD_SETUP['urlparse'] = urlparse(self.CMD_SETUP['uri'])[4]
         self.CMD_SETUP['parse_qs'] = parse_qs(self.CMD_SETUP['urlparse'])
-
-        REQUIRED_PARAMS = ['hostname','service_description']
+        wrapper_mode_config = get_wrapper_mode_config()
         MISSING_PARAMS = []
-        for rp in REQUIRED_PARAMS:
+        INVALID_PARAMS = []
+        for rp in wrapper_mode_config['REQUIRED_PARAMS']:
           if not rp in self.CMD_SETUP['parse_qs'].keys():
             MISSING_PARAMS.append(rp)
+          else:
+            IS_VALID_OPTION = True
+            if rp in wrapper_mode_config['PARAM_OPTIONS'].keys():
+              IS_VALID_OPTION = False
+              for possible_value in wrapper_mode_config['PARAM_OPTIONS'][rp]:
+                if self.CMD_SETUP['parse_qs'][rp][0] == possible_value:
+                  IS_VALID_OPTION = True
+            if not IS_VALID_OPTION:
+              INVALID_PARAMS.append(rp)
 
         if len(MISSING_PARAMS) > 0:
             err = f'{len(MISSING_PARAMS)} Missing URL parameters: {", ".join(MISSING_PARAMS)}'
             print(f'ERROR: {err}')
             self.CMD_SETUP['PYNAG_CMD'] = "echo -e '{}'".format(err)
+        elif len(INVALID_PARAMS) > 0:
+            err = f'{len(INVALID_PARAMS)} Invalid URL parameters: {", ".join(INVALID_PARAMS)}'
+            print(f'ERROR: {err}')
+            self.CMD_SETUP['PYNAG_CMD'] = "echo -e '{}'".format(err)
         else:
             HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
-            SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
+#            SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
+            SERVICE_DESCRIPTION = ''
             self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION)
 
         # New session, opening terminal

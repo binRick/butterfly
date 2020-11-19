@@ -1,0 +1,10 @@
+---
+REQUIRED_PARAMS:
+  - hostname
+  - action
+
+PARAM_OPTIONS:
+  action:
+    - normalize
+    - test_auth      
+...
