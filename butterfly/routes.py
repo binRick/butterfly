@@ -37,13 +37,14 @@ from butterfly import Route, url, utils
 from butterfly.terminal import Terminal
 from pynag import Model
 
-import yaml
+import yaml, tempfile, jinja2
 DEBUG_CMD = True
 
 def u(s):
     if sys.version_info[0] == 2:
         return s.decode('utf-8')
     return s
+
 
 def get_wrapper_mode_config():
     sub_cmd_config_file = os.environ['sub_cmd_config_file']
@@ -53,10 +54,33 @@ def get_wrapper_mode_config():
       except yaml.YAMLError as exc:
         print(exc)
 
+def write_script_template(self):
+    SCRIPT_CONTENTS = render_script_template(self)
+    print(SCRIPT_CONTENTS)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+      tmp.write(render_script_template(self).encode())
+      tmp.close()
+      print(f'tmpfile={tmp.name}')
+      return tmp.name
 
-def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION):
+
+def render_script_template(self):
+    TEMPLATE_VARS = {'foo':'Hello World!',}
+
     wrapper_mode_config = get_wrapper_mode_config()
+    if 'SCRIPT_TEMPLATE_PARAMS' in wrapper_mode_config.keys():
+      for stp in wrapper_mode_config['SCRIPT_TEMPLATE_PARAMS']:
+        TEMPLATE_VARS[stp] = self.CMD_SETUP['parse_qs'][stp][0]
 
+    return jinja2.Environment(loader=jinja2.FileSystemLoader('wrappers'),        undefined=jinja2.StrictUndefined,).get_template(wrapper_mode_config['SCRIPT_TEMPLATE']).render(TEMPLATE_VARS)
+
+def generate_cmd(HOST_NAME, SERVICE_DESCRIPTION, self):
+    wrapper_mode_config = get_wrapper_mode_config()
+    templated_script = write_script_template(self)
+    script_template = render_script_template(self)
+
+
+    print('[generate_cmd] render_script_template=\n{}\ntemplated_script={}'.format(script_template,templated_script))
     print(f'[generate_cmd] HOST_NAME={HOST_NAME}, SERVICE_DESCRIPTION={SERVICE_DESCRIPTION}, {wrapper_mode_config}')
     found_services = Model.Service.objects.filter(host_name=HOST_NAME, service_description=SERVICE_DESCRIPTION)
 
@@ -281,7 +305,9 @@ class TermCtlWebSocket(Route, KeptAliveWebSocketHandler):
             HOST_NAME = self.CMD_SETUP['parse_qs']['hostname'][0]
 #            SERVICE_DESCRIPTION = self.CMD_SETUP['parse_qs']['service_description'][0]
             SERVICE_DESCRIPTION = ''
-            self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION)
+            self.CMD_SETUP['PYNAG_CMD'] = generate_cmd(HOST_NAME, SERVICE_DESCRIPTION, self)
+            self.CMD_SETUP['SCRIPT_TEMPLATE_FILE'] = wrapper_mode_config['SCRIPT_TEMPLATE']
+            print(self.CMD_SETUP)
 
         # New session, opening terminal
         terminal = Terminal(
